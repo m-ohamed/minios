@@ -12,6 +12,9 @@ void readFile(char*, char*);
 void executeProgram(char*, int);
 void launchProgram(int segment);
 void terminate();
+void writeSector(char*, int);
+void deleteFile(char* name);
+void writeFile(char* name, char* buffer, int secNum);
 
 int main()
 {
@@ -64,14 +67,194 @@ int main()
 	// interrupt(0x21, 4, "tstpr2\0", 0x2000, 0);
 	// while(1);
 
+	// char buffer[13312];
+	// makeInterrupt21();
+	// interrupt(0x21, 7, "messag\0", 0, 0); //delete messag
+	// interrupt(0x21, 3, "messag\0", buffer, 0); // try to read messag
+	// interrupt(0x21, 0, buffer, 0, 0); //print out the contents of buffer
+
+
+	// int i=0;
+	// char buffer1[13312];
+	// char buffer2[13312];
+	// buffer2[0]='h'; buffer2[1]='e'; buffer2[2]='l'; buffer2[3]='l';
+	// buffer2[4]='o';
+	// for(i=5; i<13312; i++) buffer2[i]=0x0;
+	// makeInterrupt21();
+	// interrupt(0x21,8, "testW\0", buffer2, 1); //write file testW
+	// interrupt(0x21,3, "testW\0", buffer1, 0); //read file testW
+	// interrupt(0x21,0, buffer1, 0, 0); // print out contents of testW
+
 	makeInterrupt21();
 	interrupt(0x21, 4, "shell\0", 0x2000, 0);
 
 
-	//while(1){}
+	// while(1){}
 
 	return 0;
 
+}
+
+void writeFile(char* name, char* buffer, int secNum)
+{
+	int i;
+	int j;
+	int x;
+	int y;
+	char directory[512];
+	char map[512];
+
+	readSector(map, 1);
+	readSector(directory, 2);
+
+	i = 0;
+	j = 0;
+	x = 0;
+	y = 0;
+
+	for(i; i <= 512; i += 32)
+	{
+		if(directory[i] == 0x00)
+		{
+			break;
+		}
+	}
+
+	for(j; j < 6; j++)
+	{
+		if(name[j] == '\0')
+		{
+			break;
+		}
+
+		directory[i+j] = name[j];
+	}
+
+	if(j < 6)
+	{
+		for(j; j < 6; j++)
+			directory[i+j] = 0x00;
+	}
+
+
+	i += 6;
+
+	for(x; x < secNum; x++)
+	{
+		for(y; y <= 512; y++)
+		{
+			if(map[y] == 0x00)
+			{
+				map[y] = 0xFF;
+				directory[i+x] = y;
+				writeSector(buffer, y);
+			}
+		}
+	}
+
+	if(secNum < 26)
+	{
+		for(x; x < 26; x++)
+		{
+			directory[i+x] = 0x00;
+			i++;
+		}
+	}
+
+	writeSector(map, 1);
+	writeSector(directory, 2);
+
+	return;
+}
+
+void deleteFile(char* name)
+{
+	int i;
+	int j;
+	int found;
+	char directory[512];
+	char map[512];
+
+	readSector(map, 1);
+	readSector(directory, 2);
+
+	found = 0;
+
+	for(i = 0; found < 6 && i <= 512; i++)
+	{
+		if(name[found] == directory[i])
+		{
+			found++;
+		}
+		else
+		{
+			found = 0;
+		}
+	}
+
+	if(found == 0)
+	{
+		char er[32];
+		er[0] = 'C';
+		er[1] = 'a';
+		er[2] = 'n';
+		er[3] = 't';
+		er[4] = ' ';
+		er[5] = 'f';
+		er[6] = 'i';
+		er[7] = 'n';
+		er[8] = 'd';
+		er[9] = ' ';
+		er[10] = 'f';
+		er[11] = 'i';
+		er[12] = 'l';
+		er[13] = 'e';
+		er[14] = '!';
+		er[15] = '\n';
+		er[16] = '\b';
+		er[17] = '\b';
+		er[18] = '\b';
+		er[19] = '\b';
+		er[20] = '\b';
+		er[21] = '\b';
+		er[22] = '\b';
+		er[23] = '\b';
+		er[24] = '\b';
+		er[25] = '\b';
+		er[26] = '\b';
+		er[27] = '\b';
+		er[28] = '\b';
+		er[29] = '\b';
+		er[30] = '\b';
+		er[31] = '\0';
+		interrupt(0x21, 0, er, 0, 0);
+		return;
+	}
+
+	i -= 6;
+	directory[i] = 0x00;
+
+	i += 6;
+
+	for(j = 0; directory[i+j] != 0x00 && j < 26; j++)
+	{
+		map[directory[i+j]] = 0x00;
+	}
+
+	writeSector(map, 1);
+	writeSector(directory, 2);
+
+	return;
+
+}
+
+void writeSector(char* buffer, int sector)
+{
+	int rs = (rem(sector,18)) + 1;
+	int head = rem(div(sector,18),2);
+	int track = div(sector,36);
+	interrupt(0x13, 3*256+1, buffer, track*256+rs, head*256+0);
+	return;
 }
 
 void terminate()
@@ -163,14 +346,13 @@ void executeProgram(char* name, int segment)
 void readFile(char* f, char* b)
 {
 	int i;
-	int found;
 	int j;
+	int found;
 	char charArray[512];
 
 	readSector(charArray,2);
+
 	found = 0;
-
-
 
 	for(i = 0; found < 6 && i <= 512; i++)
 	{
@@ -307,43 +489,17 @@ int rem(int num, int divisor)
 
 void handleInterrupt21(int ax, int bx, int cx, int dx)
 {
-	if(ax == 0)
+	switch(ax)
 	{
-		printString(bx);
-	}
-	else
-	{
-		if(ax == 1)
-		{
-			readString(bx);
-		}
-		else
-		{
-			if(ax == 2)
-			{
-				readSector(bx,cx);
-			}
-			else
-			{
-				if(ax == 3)
-				{
-					readFile(bx, cx);
-				}
-				else
-				{
-					if(ax == 4)
-					{
-						executeProgram(bx, cx);
-					}
-					else
-					{
-						if(ax == 5)
-						{
-							terminate();
-						}
-					}
-				}
-			}
-		}
+		case 0: printString(bx); break;
+		case 1: readString(bx); break;
+		case 2: readSector(bx,cx); break;
+		case 3: readFile(bx, cx); break;
+		case 4: executeProgram(bx, cx); break;
+		case 5: terminate(); break;
+		case 6: writeSector(bx, cx); break;
+		case 7: deleteFile(bx); break;
+		case 8: writeFile(bx, cx, dx); break;
+		default: break;
 	}
 }

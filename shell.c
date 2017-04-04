@@ -29,25 +29,16 @@ int main()
       }
       else
       {
-        interrupt(0x21, 0, "Bad command!\n\b\b\b\b\b\b\b\b\b\b\b\b\0", 0, 0);
+        if(comparestr(split_string(input), "delete\0") == 1)
+        {
+          exec(input, 2);
+        }
+        else
+        {
+          interrupt(0x21, 0, "Bad command!\n\b\b\b\b\b\b\b\b\b\b\b\b\0", 0, 0);
+        }
       }
     }
-  }
-}
-
-char* split_string(char* input)
-{
-  int i;
-  char firstoutput[15];
-
-  for(i = 0; input[i] != '\0'; i++)
-  {
-    if(input[i] == ' ')
-    {
-      return firstoutput;
-    }
-
-    firstoutput[i] = input[i];
   }
 }
 
@@ -64,44 +55,82 @@ void exec(char* input, int op)
     buffer[c] = 0x00;
   }
 
-  if(op == 0)
+  switch(op)
   {
-    for(i = 5; counter < 6; i++)
-    {
-      secoutput[i-5] = input[i];
-      counter++;
-    }
+    case 0:
+      for(i = 5; counter < 6; i++)
+      {
+        secoutput[i-5] = input[i];
+        counter++;
+      }
 
-    for(counter; counter < 6; counter++)
-    {
-      secoutput[counter] = 0x00;
-    }
+      for(counter; counter < 6; counter++)
+      {
+        secoutput[counter] = 0x00;
+      }
 
-    interrupt(0x21, 3, secoutput, buffer, 0);
+      interrupt(0x21, 3, secoutput, buffer, 0);
 
-    if(buffer[0] != 0x00)
-    {
-      interrupt(0x21, 0, buffer, 0, 0);
-    }
-    else
-    {
-      interrupt(0x21, 0, "File not found!\n\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\0", 0, 0);
-    }
+      if(buffer[0] != 0x00)
+      {
+        interrupt(0x21, 0, buffer, 0, 0);
+      }
+      else
+      {
+        interrupt(0x21, 0, "File not found!\n\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\0", 0, 0);
+      }
+
+      break;
+
+    case 1:
+      for(i = 8; counter < 6; i++)
+      {
+        secoutput[i-8] = input[i];
+        counter++;
+      }
+
+      for(counter; counter < 6; counter++)
+      {
+        secoutput[counter] = 0x00;
+      }
+
+      interrupt(0x21, 4, secoutput, 0x2000, 0);
+
+      break;
+
+    case 2:
+      for(i = 7; counter < 6; i++)
+      {
+        secoutput[i-7] = input[i];
+        counter++;
+      }
+
+      for(counter; counter < 6; counter++)
+      {
+        secoutput[counter] = 0x00;
+      }
+
+      interrupt(0x21, 7, secoutput, 0, 0);
+
+
+    default: break;
   }
-  else
+
+}
+
+char* split_string(char* input)
+{
+  int i;
+  char firstoutput[15];
+
+  for(i = 0; input[i] != '\0'; i++)
   {
-    for(i = 8; counter < 6; i++)
+    if(input[i] == ' ')
     {
-      secoutput[i-8] = input[i];
-      counter++;
+      return firstoutput;
     }
 
-    for(counter; counter < 6; counter++)
-    {
-      secoutput[counter] = 0x00;
-    }
-
-    interrupt(0x21, 4, secoutput, 0x2000, 0);
+    firstoutput[i] = input[i];
   }
 }
 
