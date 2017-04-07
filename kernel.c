@@ -122,22 +122,21 @@ void writeFile(char* name, char* buffer, int secNum)
 
 	for(j; j < 6; j++)
 	{
+		directory[i+j] = name[j];
+
 		if(name[j] == '\0')
 		{
 			break;
 		}
-
-		directory[i+j] = name[j];
 	}
 
-	if(j < 6)
-	{
-		for(j; j < 6; j++)
-			directory[i+j] = 0x00;
-	}
+	for(j; j < 6; j++)
+		directory[i+j] = 0x00;
 
 
 	i += 6;
+	x = 0;
+	y = 0;
 
 	for(x; x < secNum; x++)
 	{
@@ -148,17 +147,14 @@ void writeFile(char* name, char* buffer, int secNum)
 				map[y] = 0xFF;
 				directory[i+x] = y;
 				writeSector(buffer, y);
+				break;
 			}
 		}
 	}
 
-	if(secNum < 26)
+	for(secNum; secNum < 26; secNum++)
 	{
-		for(x; x < 26; x++)
-		{
-			directory[i+x] = 0x00;
-			i++;
-		}
+		directory[i+secNum] = 0x00;
 	}
 
 	writeSector(map, 1);
@@ -188,13 +184,18 @@ void deleteFile(char* name)
 		}
 		else
 		{
-			found = 0;
+			if(name[found] == '\0' || name[found] == 0x00)
+			{
+				i = i + (6 - found);
+			}
+			else
+				found = 0;
 		}
 	}
 
 	if(found == 0)
 	{
-		char er[32];
+		char er[18];
 		er[0] = 'C';
 		er[1] = 'a';
 		er[2] = 'n';
@@ -211,34 +212,52 @@ void deleteFile(char* name)
 		er[13] = 'e';
 		er[14] = '!';
 		er[15] = '\n';
-		er[16] = '\b';
-		er[17] = '\b';
-		er[18] = '\b';
-		er[19] = '\b';
-		er[20] = '\b';
-		er[21] = '\b';
-		er[22] = '\b';
-		er[23] = '\b';
-		er[24] = '\b';
-		er[25] = '\b';
-		er[26] = '\b';
-		er[27] = '\b';
-		er[28] = '\b';
-		er[29] = '\b';
-		er[30] = '\b';
-		er[31] = '\0';
+		er[16] = '\r';
+		er[17] = '\0';
 		interrupt(0x21, 0, er, 0, 0);
 		return;
 	}
+	else
+	{
+		char er[29];
+		er[0] = 'F';
+		er[1] = 'i';
+		er[2] = 'l';
+		er[3] = 'e';
+		er[4] = ' ';
+		er[5] = 'd';
+		er[6] = 'e';
+		er[7] = 'l';
+		er[8] = 'e';
+		er[9] = 't';
+		er[10] = 'e';
+		er[11] = 'd';
+		er[12] = ' ';
+		er[13] = 's';
+		er[14] = 'u';
+		er[15] = 'c';
+		er[16] = 'c';
+		er[17] = 'e';
+		er[18] = 's';
+		er[19] = 's';
+		er[20] = 'f';
+		er[21] = 'u';
+		er[22] = 'l';
+		er[23] = 'l';
+		er[24] = 'y';
+		er[25] = '.';
+		er[26] = '\n';
+		er[27] = '\r';
+		er[28] = '\0';
+		interrupt(0x21, 0, er, 0, 0);
+	}
 
-	i -= 6;
-	directory[i] = 0x00;
-
-	i += 6;
+	directory[i-6] = 0x00;
 
 	for(j = 0; directory[i+j] != 0x00 && j < 26; j++)
 	{
 		map[directory[i+j]] = 0x00;
+		directory[i+j] = 0x00;
 	}
 
 	writeSector(map, 1);
@@ -285,7 +304,7 @@ void executeProgram(char* name, int segment)
 
 	if(program[0] == 0x00)
 	{
-		char er[44];
+		char er[24];
 		er[0] = 'C';
 		er[1] = 'a';
 		er[2] = 'n';
@@ -308,28 +327,8 @@ void executeProgram(char* name, int segment)
 		er[19] = 'm';
 		er[20] = '!';
 		er[21] = '\n';
-		er[22] = '\b';
-		er[23] = '\b';
-		er[24] = '\b';
-		er[25] = '\b';
-		er[26] = '\b';
-		er[27] = '\b';
-		er[28] = '\b';
-		er[29] = '\b';
-		er[30] = '\b';
-		er[31] = '\b';
-		er[32] = '\b';
-		er[33] = '\b';
-		er[34] = '\b';
-		er[35] = '\b';
-		er[36] = '\b';
-		er[37] = '\b';
-		er[38] = '\b';
-		er[39] = '\b';
-		er[40] = '\b';
-		er[41] = '\b';
-		er[42] = '\b';
-		er[43] = '\0';
+		er[22] = '\r';
+		er[23] = '\0';
 		interrupt(0x21, 0, er, 0, 0);
 		return;
 	}
@@ -362,7 +361,12 @@ void readFile(char* f, char* b)
 		}
 		else
 		{
-			found = 0;
+			if(f[found] == '\0' || f[found] == 0x00)
+			{
+				i = i + (6 - found);
+			}
+			else
+				found = 0;
 		}
 	}
 
@@ -382,6 +386,9 @@ void printString(char* c)
 	for(i = 0; c[i] != '\0'; i = i + 1)
 	{
 		interrupt(0x10, 0xE*256+c[i], 0, 0, 0);
+
+		if(c[i] == 0xA)
+			interrupt(0x10, 0xE*256+'\r', 0, 0, 0);
 	}
 
 	return;
@@ -402,7 +409,7 @@ char* readString(char* c)
 			i = i + 1;
 			c[i] = 0x0;
 			interrupt(0x10, 0xE*256+c[i], 0, 0, 0);
-			interrupt(0x10, 0xE*256+'\b', 0, 0, 0);
+			interrupt(0x10, 0xE*256+'\r', 0, 0, 0);
 			return c;
 		}
 		else
