@@ -254,7 +254,7 @@ void deleteFile(char* name)
 
 	directory[i-6] = 0x00;
 
-	for(j = 0; directory[i+j] != 0x00 && j < 26; j++)
+	for(j = 0; j < 26 && directory[i+j] != 0x00; j++)
 	{
 		map[directory[i+j]] = 0x00;
 		directory[i+j] = 0x00;
@@ -353,7 +353,7 @@ void readFile(char* f, char* b)
 
 	found = 0;
 
-	for(i = 0; found < 6 && i <= 512; i++)
+	for(i = 0; found < 6 && i < 512; i++)
 	{
 		if(f[found] == charArray[i])
 		{
@@ -361,12 +361,7 @@ void readFile(char* f, char* b)
 		}
 		else
 		{
-			if(f[found] == '\0' || f[found] == 0x00)
-			{
-				i = i + (6 - found);
-			}
-			else
-				found = 0;
+			found = 0;
 		}
 	}
 
