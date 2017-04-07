@@ -195,6 +195,8 @@ void exec(char* input, int op)
           if(buffer[(i*512) + j] != 0x00)
             break;
         }
+        if(j == 512)
+          break;
       }
 
       if(buffer[0] != 0x00)
@@ -216,8 +218,10 @@ void exec(char* input, int op)
       i = 0;
       j = 0;
 
-      for(i = 0; i < 512 && directory[i] != 0x00; i = i + 32)
+      for(i = 0; i < 512; i = i + 32)
       {
+        while(directory[i] == 0x00)
+          i += 32;
 
         for(j = 0; j < 6; j++)
           thirdfile[j] = 0x00;
