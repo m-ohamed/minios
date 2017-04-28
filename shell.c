@@ -10,6 +10,8 @@ int rem(int, int);
 
 int div(int, int);
 
+int getNum(char*, int);
+
 char buffer[13312];
 
 int main()
@@ -58,7 +60,14 @@ int main()
               }
               else
               {
-                interrupt(0x21, 0, "Bad command!\n\r\0", 0, 0);
+                if(comparestr(split_string(input), "kill\0") == 1)
+                {
+                  exec(input, 6);
+                }
+                else
+                {
+                  interrupt(0x21, 0, "Bad command!\n\r\0", 0, 0);
+                }
               }
             }
           }
@@ -310,9 +319,83 @@ void exec(char* input, int op)
 
       break;
 
+    case 6:
+      for(i = 5; counter < 6 && input[i] != '\0'; i++)
+      {
+        secoutput[i-5] = input[i];
+        counter++;
+      }
+
+      switch(secoutput[0])
+      {
+        case '0': c = 0; break;
+        case '1': c = 1; break;
+        case '2': c = 2; break;
+        case '3': c = 3; break;
+        case '4': c = 4; break;
+        case '5': c = 5; break;
+        case '6': c = 6; break;
+        case '7': c = 7; break;
+        case '8': c = 8; break;
+        case '9': c = 9; break;
+        default: break;
+      }
+
+      // secoutput[0] = c;
+      // interrupt(0x21, 0, c + " ", 0, 0);
+      // c = getNum(secoutput, counter);
+
+      interrupt(0x21, 9, c, 0, 0);
+
+
+      break;
+
     default: break;
   }
 
+}
+
+int getNum(char* num, int size)
+{
+  int i;
+  int j;
+  int sum;
+  int fin;
+
+  switch(size)
+  {
+    // case '0': i = 0; break;
+    case '1': fin = 1; break;
+    case '2': fin = 10; break;
+    case '3': fin = 100; break;
+    case '4': fin = 1000; break;
+    case '5': fin = 10000; break;
+    default: break;
+  }
+
+  for(i = 0; i < size; i++)
+  {
+    switch(num[i])
+    {
+      case '0': j = 0; break;
+      case '1': j = 1; break;
+      case '2': j = 2; break;
+      case '3': j = 3; break;
+      case '4': j = 4; break;
+      case '5': j = 5; break;
+      case '6': j = 6; break;
+      case '7': j = 7; break;
+      case '8': j = 8; break;
+      case '9': j = 9; break;
+      default: break;
+    }
+
+    sum += (j*fin);
+
+    fin = div(fin, 10);
+  }
+
+  return sum;
 }
 
 char* split_string(char* input)

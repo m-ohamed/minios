@@ -9,12 +9,25 @@ int div(int, int);
 int rem(int, int);
 void handleInterrupt21(int, int, int, int);
 void readFile(char*, char*);
-void executeProgram(char*, int);
+void executeProgram(char*);
 void launchProgram(int segment);
 void terminate();
 void writeSector(char*, int);
 void deleteFile(char* name);
 void writeFile(char* name, char* buffer, int secNum);
+void makeTimerInterrupt();
+void handleTimerInterrupt(int segment, int sp);
+void returnFromTimer(int segment, int sp);
+int getSegment(int);
+void initializeProgram(int segment);
+void setKernelDataSegment();
+void restoreDataSegment();
+void killProcess(int n);
+
+int proccessTableA[8];
+int proccessTableP[8];
+int currentProcess;
+int counter = 0;
 
 int main()
 {
@@ -85,13 +98,168 @@ int main()
 	// interrupt(0x21,3, "testW\0", buffer1, 0); //read file testW
 	// interrupt(0x21,0, buffer1, 0, 0); // print out contents of testW
 
+	int i;
+
+	for( i = 0; i < 8;i++)
+	{
+		proccessTableA[i]=0;
+		proccessTableP[i]=0xFF00;
+	}
+
+	currentProcess = 0;
+
+	makeTimerInterrupt();
 	makeInterrupt21();
+
 	interrupt(0x21, 4, "shell\0", 0x2000, 0);
 
+	// interrupt(0x21, 4, "hello2\0", 0, 0);
+	// interrupt(0x21, 4, "hello1\0", 0, 0);
 
-	// while(1){}
+
+	while(1){}
 
 	return 0;
+
+}
+
+void killProcess(int n)
+{
+	setKernelDataSegment();
+	proccessTableA[n] = 0;
+	proccessTableP[n] = 0xFF00;
+	restoreDataSegment();
+}
+
+void terminate()
+{
+	// char shell[6];
+	//
+	// shell[0] = 's';
+	// shell[1] = 'h';
+	// shell[2] = 'e';
+	// shell[3] = 'l';
+	// shell[4] = 'l';
+	// shell[5] = '\0';
+	//
+	// interrupt(0x21, 4, shell, 0x2000, 0);
+
+	setKernelDataSegment();
+	proccessTableA[currentProcess] = 0;
+	//proccessTableP[currentProcess] = 0;
+	restoreDataSegment();
+
+	while(1){}
+}
+
+void handleTimerInterrupt(int segment, int sp)
+{
+	int i;
+	int j;
+	int x;
+	counter++;
+
+	if(counter == 100)
+	{
+		counter = 0;
+
+		if(segment != 0x1000)
+		{
+			proccessTableP[currentProcess] = sp;
+		}
+
+		for(i = 0; i < 7; i++)
+		{
+			if(segment != 0x1000)
+			{
+				j = rem(currentProcess + i + 1, 8);
+			}
+
+			x = proccessTableA[j];
+
+			if(x == 1)
+			{
+				currentProcess = j;
+				segment = getSegment(currentProcess);
+				sp = proccessTableP[currentProcess];
+
+				break;
+			}
+		}
+	}
+
+	returnFromTimer(segment,sp);
+}
+
+void executeProgram(char* name)
+{
+	int i;
+	int j;
+	int segment;
+	char program[13312];
+
+	for(i = 0; i < 13312; i++)
+	{
+		program[i] = 0x00;
+	}
+
+	readFile(name, program);
+
+	if(program[0] == 0x00)
+	{
+		char er[24];
+		er[0] = 'C';
+		er[1] = 'a';
+		er[2] = 'n';
+		er[3] = 't';
+		er[4] = ' ';
+		er[5] = 'e';
+		er[6] = 'x';
+		er[7] = 'e';
+		er[8] = 'c';
+		er[9] = 'u';
+		er[10] = 't';
+		er[11] = 'e';
+		er[12] = ' ';
+		er[13] = 'p';
+		er[14] = 'r';
+		er[15] = 'o';
+		er[16] = 'g';
+		er[17] = 'r';
+		er[18] = 'a';
+		er[19] = 'm';
+		er[20] = '!';
+		er[21] = '\n';
+		er[22] = '\r';
+		er[23] = '\0';
+		interrupt(0x21, 0, er, 0, 0);
+		return;
+	}
+
+	for(i = 0; i < 8; i++)
+	{
+		setKernelDataSegment();
+		j = proccessTableA[i];
+		restoreDataSegment();
+
+		if(j == 0)
+		{
+			segment = getSegment(i);
+			setKernelDataSegment();
+			proccessTableA[i]=1;
+			// proccessTableP[i]=segment;
+			restoreDataSegment();
+			currentProcess = i;
+			break;
+		}
+	}
+
+	for(j = 0; j < 13312; j++)
+	{
+		putInMemory(segment, j, program[j]);
+	}
+
+	initializeProgram(segment);
 
 }
 
@@ -276,70 +444,20 @@ void writeSector(char* buffer, int sector)
 	return;
 }
 
-void terminate()
+int getSegment(int x)
 {
-	char shell[6];
-	shell[0] = 's';
-	shell[1] = 'h';
-	shell[2] = 'e';
-	shell[3] = 'l';
-	shell[4] = 'l';
-	shell[5] = '\0';
-
-	interrupt(0x21, 4, shell, 0x2000, 0);
-}
-
-void executeProgram(char* name, int segment)
-{
-	int i;
-	int j;
-	char program[13312];
-
-	for(i = 0; i < 13312; i++)
+	switch(x)
 	{
-		program[i] = 0x00;
+		case 0: return 0x2000; break;
+		case 1: return 0x3000; break;
+		case 2: return 0x4000; break;
+		case 3: return 0x5000; break;
+		case 4: return 0x6000; break;
+		case 5: return 0x7000; break;
+		case 6: return 0x8000; break;
+		case 7: return 0x9000; break;
+		default:break;
 	}
-
-	readFile(name, program);
-
-	if(program[0] == 0x00)
-	{
-		char er[24];
-		er[0] = 'C';
-		er[1] = 'a';
-		er[2] = 'n';
-		er[3] = 't';
-		er[4] = ' ';
-		er[5] = 'e';
-		er[6] = 'x';
-		er[7] = 'e';
-		er[8] = 'c';
-		er[9] = 'u';
-		er[10] = 't';
-		er[11] = 'e';
-		er[12] = ' ';
-		er[13] = 'p';
-		er[14] = 'r';
-		er[15] = 'o';
-		er[16] = 'g';
-		er[17] = 'r';
-		er[18] = 'a';
-		er[19] = 'm';
-		er[20] = '!';
-		er[21] = '\n';
-		er[22] = '\r';
-		er[23] = '\0';
-		interrupt(0x21, 0, er, 0, 0);
-		return;
-	}
-
-	for(j = 0; j < 13312; j++)
-	{
-		putInMemory(segment, j, program[j]);
-	}
-
-	launchProgram(segment);
-
 }
 
 void readFile(char* f, char* b)
@@ -497,11 +615,12 @@ void handleInterrupt21(int ax, int bx, int cx, int dx)
 		case 1: readString(bx); break;
 		case 2: readSector(bx,cx); break;
 		case 3: readFile(bx, cx); break;
-		case 4: executeProgram(bx, cx); break;
+		case 4: executeProgram(bx); break;
 		case 5: terminate(); break;
 		case 6: writeSector(bx, cx); break;
 		case 7: deleteFile(bx); break;
 		case 8: writeFile(bx, cx, dx); break;
+		case 9: killProcess(bx); break;
 		default: break;
 	}
 }
